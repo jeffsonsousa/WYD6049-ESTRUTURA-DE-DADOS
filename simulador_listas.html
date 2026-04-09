@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador - Listas Encadeadas</title>
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background-color: #f4f4f9;
+        margin: 0;
+        padding: 20px;
+        height: 100vh;
+        box-sizing: border-box;
+    }
+    .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; color: #333; }
+    .subtitle { font-size: 18px; color: #666; margin-bottom: 30px; }
+    
+    .controles {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 40px;
+        align-items: center;
+        background: white;
+        padding: 15px 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+    button {
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        border: none;
+        border-radius: 5px;
+        color: white;
+        font-weight: bold;
+        transition: 0.2s;
+    }
+    .btn-add { background-color: #4CAF50; } .btn-add:hover { background-color: #388E3C; }
+    .btn-rem { background-color: #f44336; } .btn-rem:hover { background-color: #d32f2f; }
+    
+    select {
+        padding: 10px;
+        font-size: 16px;
+        border-radius: 5px;
+        border: 2px solid #ccc;
+        font-weight: bold;
+        color: #333;
+        cursor: pointer;
+    }
+
+    .canvas-container {
+        position: relative;
+        width: 100%;
+        max-width: 1000px;
+        height: 300px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        display: flex;
+        align-items: center;
+        padding: 0 40px;
+        box-sizing: border-box;
+        overflow-x: auto;
+    }
+
+    .nos-container {
+        display: flex;
+        gap: 60px; /* Espaço para as setas */
+        position: relative;
+        z-index: 2;
+    }
+
+    .no {
+        width: 80px;
+        height: 80px;
+        background-color: #2196F3;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 18px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        border: 3px solid #1565C0;
+        position: relative;
+    }
+
+    .no-especial {
+        background-color: #757575;
+        border-color: #424242;
+        border-radius: 50%; /* Cabeça e Null redondos para destacar */
+    }
+
+    svg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    .seta-linha {
+        stroke: #FF9800;
+        stroke-width: 4;
+        fill: none;
+    }
+    
+    .lbl-ponteiro {
+        font-size: 12px;
+        fill: #555;
+        font-weight: bold;
+    }
+</style>
+</head>
+<body>
+
+<div class="title">Visualizador de Listas Encadeadas</div>
+<div class="subtitle">Compreendendo os nós e ponteiros dinâmicos</div>
+
+<div class="controles">
+    <select id="tipoLista" onchange="renderizar()">
+        <option value="simples">Lista Simplesmente Encadeada</option>
+        <option value="dupla">Lista Duplamente Encadeada</option>
+    </select>
+    <button class="btn-add" onclick="adicionarNo()">+ Adicionar Nó</button>
+    <button class="btn-rem" onclick="removerNo()">- Remover Nó</button>
+</div>
+
+<div class="canvas-container" id="canvas">
+    <svg id="svg-layer">
+        <defs>
+            <marker id="seta-dir" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#FF9800" />
+            </marker>
+            <marker id="seta-esq" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M 10 0 L 0 5 L 10 10 z" fill="#FF9800" />
+            </marker>
+        </defs>
+    </svg>
+    <div class="nos-container" id="nos-container">
+        </div>
+</div>
+
+<script>
+    let qtdNos = 3;
+    const maxNos = 6;
+
+    function adicionarNo() {
+        if (qtdNos < maxNos) {
+            qtdNos++;
+            renderizar();
+        } else {
+            alert("Limite máximo de nós atingido para a visualização.");
+        }
+    }
+
+    function removerNo() {
+        if (qtdNos > 0) {
+            qtdNos--;
+            renderizar();
+        }
+    }
+
+    function desenharSeta(x1, y1, x2, y2, direcao, label) {
+        const svg = document.getElementById('svg-layer');
+        const linha = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        
+        linha.setAttribute('x1', x1);
+        linha.setAttribute('y1', y1);
+        linha.setAttribute('x2', x2);
+        linha.setAttribute('y2', y2);
+        linha.setAttribute('class', 'seta-linha');
+        
+        if (direcao === 'dir') linha.setAttribute('marker-end', 'url(#seta-dir)');
+        if (direcao === 'esq') linha.setAttribute('marker-start', 'url(#seta-esq)');
+        
+        svg.appendChild(linha);
+
+        if (label) {
+            const texto = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            texto.setAttribute('x', (x1 + x2) / 2);
+            texto.setAttribute('y', y1 - 8); // Offset para cima
+            texto.setAttribute('text-anchor', 'middle');
+            texto.setAttribute('class', 'lbl-ponteiro');
+            texto.textContent = label;
+            svg.appendChild(texto);
+        }
+    }
+
+    function renderizar() {
+        const tipo = document.getElementById('tipoLista').value;
+        const container = document.getElementById('nos-container');
+        const svg = document.getElementById('svg-layer');
+        
+        // Limpar Nós
+        container.innerHTML = '';
+        
+        // Limpar SVG (mantendo as defs das setas)
+        const defs = svg.querySelector('defs').outerHTML;
+        svg.innerHTML = defs;
+
+        // Criar Nó Cabeça (Head)
+        const cabeca = document.createElement('div');
+        cabeca.className = 'no no-especial';
+        cabeca.id = 'no-head';
+        cabeca.innerText = 'Head';
+        container.appendChild(cabeca);
+
+        // Se for dupla, precisamos do NULL à esquerda para o 'prev' do primeiro nó
+        if (tipo === 'dupla' && qtdNos > 0) {
+            const nullEsq = document.createElement('div');
+            nullEsq.className = 'no no-especial';
+            nullEsq.id = 'no-null-esq';
+            nullEsq.innerText = 'Null';
+            nullEsq.style.width = '50px';
+            nullEsq.style.height = '50px';
+            nullEsq.style.marginLeft = '20px';
+            container.insertBefore(nullEsq, cabeca.nextSibling);
+        }
+
+        // Criar Nós de Dados
+        const idsDados = [];
+        for (let i = 1; i <= qtdNos; i++) {
+            const no = document.createElement('div');
+            no.className = 'no';
+            no.id = 'no-dado-' + i;
+            no.innerText = 'Dado ' + i;
+            container.appendChild(no);
+            idsDados.push(no.id);
+        }
+
+        // Criar Nó Null Final
+        const nullDir = document.createElement('div');
+        nullDir.className = 'no no-especial';
+        nullDir.id = 'no-null-dir';
+        nullDir.innerText = 'Null';
+        nullDir.style.width = '50px';
+        nullDir.style.height = '50px';
+        container.appendChild(nullDir);
+
+        // Desenhar Setas (aguardar renderização do DOM para pegar as coordenadas)
+        setTimeout(() => {
+            const rectContainer = document.getElementById('canvas').getBoundingClientRect();
+            
+            function getCentro(id) {
+                const el = document.getElementById(id);
+                if(!el) return null;
+                const rect = el.getBoundingClientRect();
+                return {
+                    x: rect.left - rectContainer.left + (rect.width / 2),
+                    y: rect.top - rectContainer.top + (rect.height / 2),
+                    raioX: rect.width / 2
+                };
+            }
+
+            const cHead = getCentro('no-head');
+            
+            if (qtdNos === 0) {
+                // Head -> Null
+                const cNull = getCentro('no-null-dir');
+                desenharSeta(cHead.x + cHead.raioX, cHead.y, cNull.x - cNull.raioX - 10, cNull.y, 'dir', 'next');
+                return;
+            }
+
+            const cPrimeiroDado = getCentro(idsDados[0]);
+            
+            // Head aponta sempre para o primeiro dado
+            desenharSeta(cHead.x + cHead.raioX, cHead.y, cPrimeiroDado.x - cPrimeiroDado.raioX - 10, cHead.y, 'dir', 'start');
+
+            if (tipo === 'dupla') {
+                const cNullEsq = getCentro('no-null-esq');
+                // Primeiro Dado prev -> Null Esq
+                desenharSeta(cNullEsq.x + cNullEsq.raioX + 10, cPrimeiroDado.y + 20, cPrimeiroDado.x - cPrimeiroDado.raioX, cPrimeiroDado.y + 20, 'esq', 'prev');
+            }
+
+            // Conectar os nós
+            for (let i = 0; i < idsDados.length; i++) {
+                const cAtual = getCentro(idsDados[i]);
+                const cProximo = (i < idsDados.length - 1) ? getCentro(idsDados[i+1]) : getCentro('no-null-dir');
+
+                if (tipo === 'simples') {
+                    // Seta no meio (Next)
+                    desenharSeta(cAtual.x + cAtual.raioX, cAtual.y, cProximo.x - cProximo.raioX - 10, cProximo.y, 'dir', 'next');
+                } else if (tipo === 'dupla') {
+                    // Seta superior (Next)
+                    desenharSeta(cAtual.x + cAtual.raioX, cAtual.y - 15, cProximo.x - cProximo.raioX - 10, cProximo.y - 15, 'dir', 'next');
+                    
+                    // Se não for o NULL final, desenha seta inferior (Prev)
+                    if (i < idsDados.length - 1) {
+                        desenharSeta(cAtual.x + cAtual.raioX + 10, cAtual.y + 15, cProximo.x - cProximo.raioX, cProximo.y + 15, 'esq', 'prev');
+                    }
+                }
+            }
+        }, 50); // Timeout rápido para garantir que o flexbox distribuiu os elementos
+    }
+
+    // Renderizar ao carregar a página e redimensionar janela
+    window.onload = renderizar;
+    window.onresize = renderizar;
+</script>
+</body>
+</html>
