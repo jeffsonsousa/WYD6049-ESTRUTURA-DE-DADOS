@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador - Fragmentação e Alocação de Memória</title>
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background-color: #f4f4f9;
+        margin: 0;
+        padding: 40px;
+    }
+    .title {
+        font-size: 32px;
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: #333;
+    }
+    .subtitle {
+        font-size: 18px;
+        color: #666;
+        margin-bottom: 30px;
+    }
+    .legenda {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+        font-size: 16px;
+    }
+    .legenda-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .box { width: 20px; height: 20px; border-radius: 4px; }
+    .livre-box { background-color: #e0e0e0; }
+    .ocupado-box { background-color: #757575; }
+    .seq-box { background-color: #2196F3; }
+    .enc-box { background-color: #4CAF50; }
+
+    .simulador-area {
+        position: relative;
+        margin-bottom: 30px;
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 10px;
+        position: relative;
+        z-index: 2;
+    }
+    .celula {
+        width: 60px;
+        height: 60px;
+        background-color: #e0e0e0;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        color: #555;
+        font-weight: bold;
+        transition: 0.3s;
+        box-sizing: border-box;
+    }
+    .celula.ocupado { background-color: #757575; color: transparent; }
+    .celula.sequencial { background-color: #2196F3; color: white; border: 3px solid #1565C0; }
+    .celula.encadeada { background-color: #4CAF50; color: white; border: 3px solid #2E7D32; }
+    
+    svg {
+        position: absolute;
+        top: 20px; /* match padding */
+        left: 20px;
+        width: calc(100% - 40px);
+        height: calc(100% - 40px);
+        pointer-events: none;
+        z-index: 3;
+    }
+    line {
+        stroke: #FF9800;
+        stroke-width: 4;
+        stroke-dasharray: 8, 4;
+        animation: dash 1s linear infinite;
+    }
+    @keyframes dash {
+        to { stroke-dashoffset: -12; }
+    }
+
+    .controles {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    button {
+        padding: 12px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        border: none;
+        border-radius: 5px;
+        color: white;
+        font-weight: bold;
+        transition: 0.2s;
+    }
+    .btn-frag { background-color: #757575; } .btn-frag:hover { background-color: #424242; }
+    .btn-seq { background-color: #2196F3; } .btn-seq:hover { background-color: #1976D2; }
+    .btn-enc { background-color: #4CAF50; } .btn-enc:hover { background-color: #388E3C; }
+    .btn-limpar { background-color: #f44336; } .btn-limpar:hover { background-color: #d32f2f; }
+    
+    .msg {
+        font-size: 20px;
+        font-weight: bold;
+        min-height: 30px;
+        text-align: center;
+    }
+    .sucesso { color: #2E7D32; }
+    .erro { color: #D32F2F; }
+</style>
+</head>
+<body>
+
+<div class="title">Alocação de Memória RAM</div>
+<div class="subtitle">Vetor (Sequencial) vs. Lista (Encadeada)</div>
+
+<div class="legenda">
+    <div class="legenda-item"><div class="box livre-box"></div> Espaço Livre</div>
+    <div class="legenda-item"><div class="box ocupado-box"></div> Outros Programas (Fragmentos)</div>
+    <div class="legenda-item"><div class="box seq-box"></div> Nosso Vetor (Sequencial)</div>
+    <div class="legenda-item"><div class="box enc-box"></div> Nossa Lista (Encadeada)</div>
+</div>
+
+<div class="simulador-area">
+    <div class="grid" id="grid"></div>
+    <svg id="linhas">
+        <defs>
+            <marker id="seta" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#FF9800" />
+            </marker>
+        </defs>
+    </svg>
+</div>
+
+<div class="controles">
+    <button class="btn-frag" onclick="gerarFragmentacao()">Gerar Fragmentação</button>
+    <button class="btn-seq" onclick="alocarSequencial()">Alocar Vetor (Tam: 4)</button>
+    <button class="btn-enc" onclick="alocarEncadeada()">Alocar Lista (Tam: 4)</button>
+    <button class="btn-limpar" onclick="limparTudo()">Limpar Tudo</button>
+</div>
+
+<div class="msg" id="mensagem"></div>
+
+<script>
+    const TOTAL_CELULAS = 32; // 8 colunas x 4 linhas
+    let memoria = new Array(TOTAL_CELULAS).fill(0); // 0=livre, 1=ocupado, 2=seq, 3=enc
+    
+    function inicializarGrelha() {
+        const grid = document.getElementById('grid');
+        grid.innerHTML = '';
+        for (let i = 0; i < TOTAL_CELULAS; i++) {
+            const celula = document.createElement('div');
+            celula.className = 'celula';
+            celula.id = 'celula-' + i;
+            celula.innerText = i;
+            grid.appendChild(celula);
+        }
+    }
+
+    function atualizarEcra() {
+        for (let i = 0; i < TOTAL_CELULAS; i++) {
+            const celula = document.getElementById('celula-' + i);
+            celula.className = 'celula'; // reset
+            if (memoria[i] === 1) celula.classList.add('ocupado');
+            if (memoria[i] === 2) celula.classList.add('sequencial');
+            if (memoria[i] === 3) celula.classList.add('encadeada');
+        }
+    }
+
+    function mostrarMensagem(texto, tipo) {
+        const msgBox = document.getElementById('mensagem');
+        msgBox.innerText = texto;
+        msgBox.className = 'msg ' + tipo;
+    }
+
+    function limparLinhasSVG() {
+        const svg = document.getElementById('linhas');
+        const defs = svg.querySelector('defs');
+        svg.innerHTML = '';
+        svg.appendChild(defs); // Mantém a ponta da seta
+    }
+
+    function limparTudo() {
+        memoria.fill(0);
+        limparLinhasSVG();
+        atualizarEcra();
+        mostrarMensagem('Memória limpa.', 'sucesso');
+    }
+
+    function gerarFragmentacao() {
+        limparTudo();
+        for (let i = 0; i < TOTAL_CELULAS; i++) {
+            // ~45% de chance de o bloco estar ocupado por outro programa
+            if (Math.random() < 0.45) {
+                memoria[i] = 1;
+            }
+        }
+        atualizarEcra();
+        mostrarMensagem('Memória fragmentada. Tente alocar agora!', 'sucesso');
+    }
+
+    function alocarSequencial() {
+        const tamanho = 4;
+        let blocosEncontrados = -1;
+
+        // Procura 4 blocos seguidos
+        for (let i = 0; i <= TOTAL_CELULAS - tamanho; i++) {
+            let espacoLivre = true;
+            for (let j = 0; j < tamanho; j++) {
+                if (memoria[i + j] !== 0) {
+                    espacoLivre = false;
+                    break;
+                }
+            }
+            if (espacoLivre) {
+                blocosEncontrados = i;
+                break;
+            }
+        }
+
+        if (blocosEncontrados !== -1) {
+            for (let j = 0; j < tamanho; j++) {
+                memoria[blocosEncontrados + j] = 2;
+            }
+            atualizarEcra();
+            mostrarMensagem('Sucesso! Vetor alocado em blocos contíguos.', 'sucesso');
+        } else {
+            mostrarMensagem('ERRO (Overflow)! Não há 4 blocos contíguos disponíveis.', 'erro');
+        }
+    }
+
+    function desenharSeta(idx1, idx2) {
+        const celula1 = document.getElementById('celula-' + idx1);
+        const celula2 = document.getElementById('celula-' + idx2);
+        
+        // Coordenadas relativas ao container da grelha
+        const x1 = celula1.offsetLeft + celula1.offsetWidth / 2;
+        const y1 = celula1.offsetTop + celula1.offsetHeight / 2;
+        const x2 = celula2.offsetLeft + celula2.offsetWidth / 2;
+        const y2 = celula2.offsetTop + celula2.offsetHeight / 2;
+
+        const linha = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        linha.setAttribute('x1', x1);
+        linha.setAttribute('y1', y1);
+        linha.setAttribute('x2', x2);
+        linha.setAttribute('y2', y2);
+        linha.setAttribute('marker-end', 'url(#seta)');
+        
+        document.getElementById('linhas').appendChild(linha);
+    }
+
+    function alocarEncadeada() {
+        const tamanho = 4;
+        let posicoesLivres = [];
+
+        // Procura blocos livres em QUALQUER lugar
+        for (let i = 0; i < TOTAL_CELULAS; i++) {
+            if (memoria[i] === 0) {
+                posicoesLivres.push(i);
+                if (posicoesLivres.length === tamanho) break;
+            }
+        }
+
+        if (posicoesLivres.length === tamanho) {
+            limparLinhasSVG(); // Limpa setas antigas
+            for (let i = 0; i < posicoesLivres.length; i++) {
+                memoria[posicoesLivres[i]] = 3; // Marca como encadeado
+                if (i > 0) {
+                    // Desenha seta do elemento anterior para o atual (simula o ponteiro)
+                    desenharSeta(posicoesLivres[i-1], posicoesLivres[i]);
+                }
+            }
+            atualizarEcra();
+            mostrarMensagem('Sucesso! Lista alocada com sucesso usando ponteiros.', 'sucesso');
+        } else {
+            mostrarMensagem('ERRO! Memória física insuficiente (mesmo fragmentada).', 'erro');
+        }
+    }
+
+    // Arranca o simulador
+    inicializarGrelha();
+    atualizarEcra();
+</script>
+</body>
+</html>
