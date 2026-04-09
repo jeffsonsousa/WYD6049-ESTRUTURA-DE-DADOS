@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Simulador - Deque Circular</title>
+<style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background-color: #f4f4f9; margin: 0; }
+    .title { font-size: 32px; font-weight: bold; margin-bottom: 40px; color: #333; }
+    .vetor-container { display: flex; gap: 10px; margin-bottom: 60px; position: relative; }
+    .celula { width: 70px; height: 70px; border: 3px solid #ccc; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; background-color: white; border-radius: 8px; position: relative; }
+    .celula.ocupada { background-color: #4CAF50; color: white; border-color: #388E3C; }
+    .indice { position: absolute; top: -30px; font-size: 16px; color: #777; font-weight: normal;}
+    .ponteiro { position: absolute; bottom: -35px; font-size: 18px; font-weight: bold; text-align: center; width: 100%; }
+    .ponteiro.esq { color: #E53935; }
+    .ponteiro.dir { color: #1E88E5; }
+    .controles { display: flex; gap: 15px; margin-bottom: 20px; }
+    button { padding: 12px 24px; font-size: 18px; cursor: pointer; border: none; border-radius: 5px; color: white; font-weight: bold; transition: 0.3s; }
+    .btn-esq { background-color: #E53935; } .btn-esq:hover { background-color: #C62828; }
+    .btn-dir { background-color: #1E88E5; } .btn-dir:hover { background-color: #1565C0; }
+    .msg { font-size: 22px; font-weight: bold; color: #D32F2F; min-height: 30px; }
+</style>
+</head>
+<body>
+
+<div class="title">Comportamento da Lista Circular</div>
+
+<div class="vetor-container" id="vetor">
+    </div>
+
+<div class="controles">
+    <button class="btn-esq" onclick="inserirEsq()">+ Inserir Esq</button>
+    <button class="btn-esq" onclick="removerEsq()">- Remover Esq</button>
+    <button class="btn-dir" onclick="removerDir()">- Remover Dir</button>
+    <button class="btn-dir" onclick="inserirDir()">+ Inserir Dir</button>
+</div>
+<div class="msg" id="mensagem"></div>
+
+<script>
+    const TAMANHO = 8;
+    let deque = new Array(TAMANHO).fill(null);
+    let aux_esq = 3;
+    let aux_dir = 3;
+    let count = 1;
+    let elementoAtual = 1;
+
+    // Inicializa com um elemento no meio
+    deque[3] = "A";
+
+    function render() {
+        const container = document.getElementById('vetor');
+        container.innerHTML = '';
+        
+        for (let i = 0; i < TAMANHO; i++) {
+            const celula = document.createElement('div');
+            celula.className = 'celula' + (deque[i] !== null ? ' ocupada' : '');
+            
+            const indice = document.createElement('div');
+            indice.className = 'indice';
+            indice.innerText = i;
+            celula.appendChild(indice);
+
+            if (deque[i] !== null) {
+                celula.appendChild(document.createTextNode(deque[i]));
+            }
+
+            // Lógica para desenhar os ponteiros sem sobrepor
+            let ptrHtml = '';
+            if (count > 0) {
+                if (i === aux_esq && i === aux_dir) {
+                    ptrHtml = '<div class="ponteiro esq" style="bottom:-35px">aux_esq</div><div class="ponteiro dir" style="bottom:-60px">aux_dir</div>';
+                } else {
+                    if (i === aux_esq) ptrHtml = '<div class="ponteiro esq">aux_esq</div>';
+                    if (i === aux_dir) ptrHtml = '<div class="ponteiro dir">aux_dir</div>';
+                }
+            }
+            celula.innerHTML += ptrHtml;
+            container.appendChild(celula);
+        }
+    }
+
+    function mostrarMsg(texto) {
+        document.getElementById('mensagem').innerText = texto;
+        setTimeout(() => document.getElementById('mensagem').innerText = '', 2500);
+    }
+
+    function getLetra() {
+        elementoAtual++;
+        return String.fromCharCode(64 + elementoAtual); // Letras do alfabeto
+    }
+
+    function inserirDir() {
+        if (count === TAMANHO) return mostrarMsg('Erro: Overflow! O vetor está cheio.');
+        if (count === 0) { aux_esq = 3; aux_dir = 3; }
+        else { aux_dir = (aux_dir + 1) % TAMANHO; }
+        deque[aux_dir] = getLetra();
+        count++;
+        render();
+    }
+
+    function inserirEsq() {
+        if (count === TAMANHO) return mostrarMsg('Erro: Overflow! O vetor está cheio.');
+        if (count === 0) { aux_esq = 3; aux_dir = 3; }
+        else { aux_esq = (aux_esq - 1 + TAMANHO) % TAMANHO; }
+        deque[aux_esq] = getLetra();
+        count++;
+        render();
+    }
+
+    function removerDir() {
+        if (count === 0) return mostrarMsg('Erro: A lista já está vazia!');
+        deque[aux_dir] = null;
+        count--;
+        if (count > 0) aux_dir = (aux_dir - 1 + TAMANHO) % TAMANHO;
+        render();
+    }
+
+    function removerEsq() {
+        if (count === 0) return mostrarMsg('Erro: A lista já está vazia!');
+        deque[aux_esq] = null;
+        count--;
+        if (count > 0) aux_esq = (aux_esq + 1) % TAMANHO;
+        render();
+    }
+
+    // Renderiza a tela inicial
+    render();
+</script>
+</body>
+</html>
